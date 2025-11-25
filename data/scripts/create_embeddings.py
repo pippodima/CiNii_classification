@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-from utils import load_df, save
+from utils import load_df, save, _get_device
 from tqdm import tqdm
 from clustering import auto_optimize_clustering
 from labeling import label_clusters
@@ -30,7 +30,7 @@ def get_title_and_abstract(df: pd.DataFrame, title_col="title_en", abs_col="abst
 
 
 def getEmbeddings(model, query, documents, batch_size=32):
-    _ = model.encode(query, prompt_name="query", device="cpu")
+    _ = model.encode(query, prompt_name="query", device=_get_device())
 
     embeddings = []
     for i in tqdm(range(0, len(documents), batch_size), desc="Embedding batches"):
