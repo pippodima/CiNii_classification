@@ -8,9 +8,9 @@ def save(df: pd.DataFrame, path: str = "final/data.parquet") -> None:
     print(f"✅ Saved to {path} (Parquet format)")
 
 
-def load_df(path: str = "processed/rdf_results_final.csv.gz") -> pd.DataFrame:
+def load_df(path: str = "processed/rdf_results_final.parquet") -> pd.DataFrame:
     print("Loading df")
-    return pd.read_csv(path, compression="gzip")
+    return pd.read_parquet(path)
 
 
 
