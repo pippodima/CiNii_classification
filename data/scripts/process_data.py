@@ -4,9 +4,11 @@ from html import unescape
 import pandas as pd
 from langdetect import detect
 from langdetect.lang_detect_exception import LangDetectException
+from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
 from tqdm import tqdm
-from deep_translator import GoogleTranslator
-from utils import load_df, save
+from utils import load_df, save, _get_device, M2M_LANG_MAP
+from time import sleep
+import torch
 tqdm.pandas()
 
 
@@ -30,6 +32,7 @@ def clean_abstract(text: str) -> str:
     text = text.replace("``", '"').replace("''", '"')
     text = re.sub(r"\s+", " ", text)
 
+
     return text.strip()
 
 
@@ -50,6 +53,7 @@ def detect_language(text: str) -> str:
 
 DIAGNOSTIC_PATTERNS = re.compile(
     r'\blhd\s*(bolometer|flxloop|fpellet|interferometer|cxrs|ece|diagnostic|probe)\b|'
+    r'^lhd\b|'
     r'\blhd\s*#?\d+',
     flags=re.IGNORECASE
 )
@@ -176,42 +180,114 @@ def drop_boilerplate_only_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[~mask].copy()
 
 
-# ============================================================================
-# MAIN PIPELINE
-# ============================================================================
 
-def translate_to_eng(df: pd.DataFrame) -> pd.DataFrame:
-    translator = GoogleTranslator(source='auto', target='en')
-    # Create new columns
-    df['title_en'] = df['title'].astype(str)  # default: copy original
-    df['abstract_en'] = df['clean_abstract'].astype(str)
+# Load model once globally (fast)
+DEVICE = _get_device()
+print(f"Using device: {DEVICE}")
 
-    # Translate title where title_lang != 'en'
-    mask_t = df['title_lang'].astype(str) != 'en'
-    for idx in tqdm(df[mask_t].index, desc="Translating titles"):
+tokenizer = M2M100Tokenizer.from_pretrained("facebook/m2m100_418M")
+model = M2M100ForConditionalGeneration.from_pretrained("facebook/m2m100_418M").to(DEVICE)
+
+
+def normalize_lang(code):
+    if code is None:
+        return None
+    return M2M_LANG_MAP.get(code.lower(), None)
+
+
+def translate_batch_m2m(text_list, src_lang, batch_size=4):
+    """Translate list of texts from src_lang → English using GPU M2M100."""
+
+    def safe_generate(**kwargs):
         try:
-            original = df.at[idx, 'title']
-            df.at[idx, 'title_en'] = translator.translate(original)
-        except Exception as e:
-            # optionally log error, keep original
-            df.at[idx, 'title_en'] = original
+            return model.generate(**kwargs)
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            sleep(1)
+            return model.generate(**kwargs)
 
-    # Translate abstract where abstract_lang != 'en'
-    mask_a = df['abstract_lang'].astype(str) != 'en'
-    for idx in tqdm(df[mask_a].index, desc="Translating abstracts"):
-        try:
-            original = df.at[idx, 'clean_abstract']
-            df.at[idx, 'abstract_en'] = translator.translate(original)
-        except Exception as e:
-            df.at[idx, 'abstract_en'] = original
+
+    if src_lang is None:
+        return text_list  # identity: skip
+
+    tokenizer.src_lang = src_lang
+    results = []
+
+    for i in tqdm(range(0, len(text_list), batch_size), desc=f"{src_lang} → en"):
+        batch = text_list[i:i + batch_size]
+
+        encoded = tokenizer(
+            batch,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512
+        ).to(DEVICE)
+
+        generated = safe_generate(
+            **encoded,
+            forced_bos_token_id=tokenizer.get_lang_id("en"),
+            num_beams=1,
+            max_length=256
+        )
+
+        outputs = tokenizer.batch_decode(generated, skip_special_tokens=True)
+        results.extend(outputs)
+
+    return results
+
+
+def translate_to_eng(df):
+    print("Translating to English using local M2M100 model")
+
+    df["title_en"] = df["title"].astype(str)
+    df["abstract_en"] = df["clean_abstract"].astype(str)
+
+    # ---------- TITLES ----------
+    mask_t = df["title_lang"] != "en"
+    langs_t = df.loc[mask_t, "title_lang"].tolist()
+
+    for lang in set(langs_t):
+        norm = normalize_lang(lang)
+
+        # skip unsupported languages
+        if norm is None or norm == "en":
+            continue
+
+        idx = df.index[(df["title_lang"] == lang)]
+        texts = df.loc[idx, "title"].tolist()
+
+        translated = translate_batch_m2m(texts, norm)
+        df.loc[idx, "title_en"] = translated
+
+    # ---------- ABSTRACTS ----------
+    mask_a = df["abstract_lang"] != "en"
+    langs_a = df.loc[mask_a, "abstract_lang"].tolist()
+
+    for lang in set(langs_a):
+        norm = normalize_lang(lang)
+
+        # skip unsupported languages
+        if norm is None or norm == "en":
+            continue
+
+        idx = df.index[(df["abstract_lang"] == lang)]
+        texts = df.loc[idx, "clean_abstract"].tolist()
+
+        translated = translate_batch_m2m(texts, norm)
+        df.loc[idx, "abstract_en"] = translated
+        torch.cuda.empty_cache()
 
     return df
 
 
+# ============================================================================
+# MAIN PIPELINE
+# ============================================================================
 
 
 def main():
-    df = load_df("../processed/rdf_results_final.parquet").sample(n=20000, random_state=42)
+    df = load_df("../processed/rdf_results_final.parquet").sample(n=80000, random_state=42)
     print(df.shape)
     df = drop_empty_rows(df)
     print(df.shape)
@@ -226,6 +302,7 @@ def main():
     df_diag, df_sci = classify_documents(df)
     save(df_sci, "../final/data_sci_Cleaned.parquet")
     save(df_diag, "../final/data_diag_Cleaned.parquet")
+
 
 
 if __name__ == "__main__":

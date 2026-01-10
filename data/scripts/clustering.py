@@ -35,9 +35,9 @@ def auto_optimize_clustering(embeddings):
     """
 
     configs = []
-    for n in [5]:       # can expand later: [5, 10, 20]
-        for d in [0.2]: # can expand later: [0.05, 0.1, 0.2]
-            for c in [10]:  # can expand later: [10, 20, 50]
+    for n in [5, 10, 20]:
+        for d in [0.05, 0.1, 0.2]:
+            for c in [10, 20, 50]:
                 configs.append({"neighbors": n, "min_dist": d, "cluster_size": c})
 
     best_score, best_cfg = -1, None

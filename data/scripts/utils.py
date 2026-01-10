@@ -26,3 +26,23 @@ def _get_device() -> str:
     else:
         print("💻 No GPU found — using CPU")
         return "cpu"
+
+
+M2M_LANG_MAP = {
+    "ja": "ja",
+    "zh": "zh",
+    "zh-cn": "zh",
+    "zh-tw": "zh",
+    "zh-hk": "zh",
+    "ko": "ko",
+    "fr": "fr",
+    "de": "de",
+    "es": "es",
+    "ru": "ru",
+    "it": "it",
+    "pt": "pt",
+    "nl": "nl",
+    "ar": "ar",
+    "hi": "hi",
+    "en": "en",
+}

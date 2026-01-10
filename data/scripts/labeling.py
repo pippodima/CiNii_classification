@@ -4,11 +4,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 def extract_top_tfidf_terms(texts, top_n=10):
-    """
-    Extract top-N TF-IDF terms using ONLY the default English stopwords.
-    No custom stopword removal.
-    """
-
     texts = [t for t in texts if isinstance(t, str) and t.strip()]
     if not texts:
         return ["unknown"]
@@ -22,10 +17,24 @@ def extract_top_tfidf_terms(texts, top_n=10):
 
     x = vectorizer.fit_transform(texts)
     tfidf_sum = np.asarray(x.sum(axis=0)).ravel()
-    terms = np.array(vectorizer.get_feature_names_out())
+    terms = vectorizer.get_feature_names_out()
 
-    top_idx = np.argsort(tfidf_sum)[::-1][:top_n]
-    return terms[top_idx].tolist()
+    sorted_idx = np.argsort(tfidf_sum)[::-1]
+
+    cleaned = []
+    for i in sorted_idx:
+        t = terms[i]
+
+        if t.isdigit():      # number
+            continue
+        if len(t) == 1:      # single letter
+            continue
+
+        cleaned.append(t)
+        if len(cleaned) == top_n:
+            break
+
+    return cleaned
 
 
 def label_clusters(df, labels, text_col="full_text"):
