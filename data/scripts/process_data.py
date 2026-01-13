@@ -1,4 +1,3 @@
-import os
 import re
 from html import unescape
 import pandas as pd
@@ -11,6 +10,12 @@ from time import sleep
 import torch
 tqdm.pandas()
 
+# Load model once globally (fast)
+# DEVICE = _get_device()
+# print(f"Using device: {DEVICE}")
+
+# tokenizer = M2M100Tokenizer.from_pretrained("facebook/m2m100_418M")
+# model = M2M100ForConditionalGeneration.from_pretrained("facebook/m2m100_418M").to(DEVICE)
 
 # ============================================================================
 # TEXT CLEANING
@@ -45,6 +50,17 @@ def detect_language(text: str) -> str:
         return detect(text)
     except LangDetectException:
         return None
+
+def keep_only_english(df: pd.DataFrame) -> pd.DataFrame:
+    print("Keeping only papers with both title and abstract in English")
+    before = len(df)
+
+    df_en = df[(df["title_lang"] == "en") & (df["abstract_lang"] == "en")].copy()
+
+    after = len(df_en)
+    print(f"Kept {after} / {before} rows ({after/before:.1%})")
+
+    return df_en
 
 
 # ============================================================================
@@ -180,15 +196,6 @@ def drop_boilerplate_only_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[~mask].copy()
 
 
-
-# Load model once globally (fast)
-DEVICE = _get_device()
-print(f"Using device: {DEVICE}")
-
-tokenizer = M2M100Tokenizer.from_pretrained("facebook/m2m100_418M")
-model = M2M100ForConditionalGeneration.from_pretrained("facebook/m2m100_418M").to(DEVICE)
-
-
 def normalize_lang(code):
     if code is None:
         return None
@@ -287,7 +294,7 @@ def translate_to_eng(df):
 
 
 def main():
-    df = load_df("../processed/rdf_results_final.parquet").sample(n=80000, random_state=42)
+    df = load_df("data/processed/rdf_results_final.parquet").sample(n=100000, random_state=42)
     print(df.shape)
     df = drop_empty_rows(df)
     print(df.shape)
@@ -297,11 +304,13 @@ def main():
     print(df.shape)
     df = add_abstract_language(df)
     print(df.shape)
-    df = translate_to_eng(df)
+    df = keep_only_english(df)
     print(df.shape)
+    # df = translate_to_eng(df)
+    # print(df.shape)
     df_diag, df_sci = classify_documents(df)
-    save(df_sci, "../final/data_sci_Cleaned.parquet")
-    save(df_diag, "../final/data_diag_Cleaned.parquet")
+    save(df_sci, "data/final/data_sci_Cleaned.parquet")
+    save(df_diag, "data/final/data_diag_Cleaned.parquet")
 
 
 
