@@ -8,24 +8,27 @@ from datetime import datetime
 from embeddings_pipeline import getEmbeddings, getModel, get_title_and_abstract
 import numpy as np
 import pandas as pd
+from process_data import apply_clean_text_to_df
 
-OUTPUT_DIR = "../../output"
+OUTPUT_DIR = "output"
 query_prompt = "Given a scientific paper title and abstract, produce an embedding that captures the research topic."
 
 
 
 def main():
     print("📥 Loading data...")
-    df = load_df("../final/data_sci_Cleaned.parquet")
+    df = load_df("data/final/data_sci_Cleaned.parquet").sample(n=64, random_state=42)
+
+    df = apply_clean_text_to_df(df)
 
     print("🧠 Loading embedding model...")
     model = getModel()
 
     print("📝 Preparing documents...")
-    documents = get_title_and_abstract(df)
+    documents = get_title_and_abstract(df, title_col="title", abs_col="abstract")
 
     print("🔢 Generating embeddings...")
-    embeddings = getEmbeddings(model, query_prompt, documents, batch_size=64)
+    embeddings = getEmbeddings(model, query_prompt, documents, batch_size=2)
     df["embeddings"] = embeddings.tolist()
 
     print("🌐 Running auto-optimized clustering...")
@@ -50,9 +53,9 @@ def main():
     with open(os.path.join(OUTPUT_DIR, "metadata.json"), "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
-    print("📊 Generating plots...")
-    plot_static(umap_embeddings, labels, os.path.join(OUTPUT_DIR, "umap_clusters.png"))
-    plot_interactive(df_labeled, umap_embeddings, os.path.join(OUTPUT_DIR, "umap_clusters.html"))
+    # print("📊 Generating plots...")
+    # plot_static(umap_embeddings, labels, os.path.join(OUTPUT_DIR, "umap_clusters.png"))
+    # plot_interactive(df_labeled, umap_embeddings, os.path.join(OUTPUT_DIR, "umap_clusters.html"))
 
     print("✅ Done.")
 

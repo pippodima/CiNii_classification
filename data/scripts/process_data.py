@@ -294,7 +294,7 @@ def translate_to_eng(df):
 
 
 def main():
-    df = load_df("data/processed/rdf_results_final.parquet").sample(n=100000, random_state=42)
+    df = load_df("data/processed/rdf_results_final.parquet")
     print(df.shape)
     df = drop_empty_rows(df)
     print(df.shape)

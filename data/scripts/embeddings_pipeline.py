@@ -7,7 +7,7 @@ from tqdm import tqdm
 # -----------------------------------------------------
 # Embedding helpers
 # -----------------------------------------------------
-def getModel(modelName="Qwen/Qwen3-Embedding-0.6B"):
+def getModel(modelName="Qwen/Qwen3-Embedding-8B"):
     return SentenceTransformer(modelName)
 
 
