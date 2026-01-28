@@ -51,16 +51,19 @@ def detect_language(text: str) -> str:
     except LangDetectException:
         return None
 
-def keep_only_english(df: pd.DataFrame) -> pd.DataFrame:
+def keep_only_english(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     print("Keeping only papers with both title and abstract in English")
     before = len(df)
 
-    df_en = df[(df["title_lang"] == "en") & (df["abstract_lang"] == "en")].copy()
+    mask_en = (df["title_lang"] == "en") & (df["abstract_lang"] == "en")
+
+    df_en = df[mask_en].copy()
+    df_other = df[~mask_en].copy()
 
     after = len(df_en)
-    print(f"Kept {after} / {before} rows ({after/before:.1%})")
+    print(f"Kept {after} / {before} rows ({after / before:.1%})")
 
-    return df_en
+    return df_en, df_other
 
 
 # ============================================================================
@@ -170,7 +173,7 @@ def classify_documents(df: pd.DataFrame) -> pd.DataFrame:
     df_sci = df[df["type"] == "scientific_paper"].copy()
 
     print(f"Diagnostic reports: {len(df_diag)} | Scientific papers: {len(df_sci)}")
-    return df_diag, df_sci
+    return df_sci
 
 
 # ============================================================================
@@ -304,13 +307,13 @@ def main():
     print(df.shape)
     df = add_abstract_language(df)
     print(df.shape)
-    df = keep_only_english(df)
+    df, df_other_languages = keep_only_english(df)
     print(df.shape)
     # df = translate_to_eng(df)
     # print(df.shape)
-    df_diag, df_sci = classify_documents(df)
-    save(df_sci, "data/final/data_sci_Cleaned.parquet")
-    save(df_diag, "data/final/data_diag_Cleaned.parquet")
+    df_sci = classify_documents(df)
+    save(df_sci, "data/final/data_english.parquet")
+    save(df_other_languages, "data/final/data_other_languages.parquet")
 
 
 

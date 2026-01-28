@@ -272,8 +272,8 @@ def main():
         "-b",
         "--batch-size",
         type=int,
-        default=10000,
-        help="Batch size for processing (default: 10000)",
+        default=50000,
+        help="Batch size for processing (default: 50000)",
     )
     parser.add_argument(
         "-r",
