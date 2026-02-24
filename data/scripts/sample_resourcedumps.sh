@@ -7,9 +7,9 @@ set -euo pipefail
 # ==========================================================
 
 # --- Defaults ---
-N=20
+N=5
 SRC="/mnt/nas-lae/cinii-kg/resourcedump_rdf_product_20240404"
-DEST="/home/fdmartino/work/cinii/CiNii_classification/data/raw"
+DEST="/mnt/exssd3/share/fdimartino/CiNiiClassification/CiNii_classification/data/raw"
 LIST_FILE="selected_folders.txt"
 JOBS=4          # parallel rsync jobs
 SEED=""         # optional: reproducible sampling if set

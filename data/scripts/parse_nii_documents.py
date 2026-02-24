@@ -272,14 +272,15 @@ def main():
         "-b",
         "--batch-size",
         type=int,
-        default=10000,
-        help="Batch size for processing (default: 10000)",
+        default=50000,
+        help="Batch size for processing (default: 50000)",
     )
     parser.add_argument(
         "-r",
         "--root-folder",
         type=str,
-        default="data/raw",
+        default="/mnt/nas-lae/cinii-kg/resourcedump_rdf_product_20240404",
+        # default="data/raw",
         help="Root folder containing RDF files (default: data/raw)",
     )
     parser.add_argument(
