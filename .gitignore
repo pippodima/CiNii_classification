@@ -1,2 +1,2 @@
 # Ignore all Parquet files
-*.parquet
+*.parquet*
