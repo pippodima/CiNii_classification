@@ -1,2 +1,8 @@
 # Ignore all Parquet files
 *.parquet*
+
+data/raw
+data/processed
+data/final
+data/embedded
+data/embedded
