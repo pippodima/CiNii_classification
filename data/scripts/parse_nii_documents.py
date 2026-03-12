@@ -7,7 +7,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from typing import Dict, List, Set, Optional
 import pandas as pd
-
+import html
+from datetime import datetime
 from configs import NAMESPACES
 from utils import save
 
@@ -33,32 +34,198 @@ def extract_title(root: ET.Element) -> Optional[str]:
 
 
 def extract_abstract(root: ET.Element) -> Optional[str]:
-    """Extract abstract from RDF notation element."""
-    abstract_elem = root.find(".//cinii:description/cinii:notation", NAMESPACES)
-    return abstract_elem.text.strip() if abstract_elem is not None and abstract_elem.text else None
+    # Prefer <description><type>abstract</type><notation>...</notation></description>
+    for desc in root.iter():
+        if localname(desc.tag) != "description":
+            continue
+
+        desc_type = None
+        notation_text = None
+
+        for child in list(desc):
+            ln = localname(child.tag)
+            if ln == "type" and child.text:
+                desc_type = child.text.strip().lower()
+            elif ln == "notation" and child.text:
+                notation_text = child.text
+
+        if desc_type == "abstract" and notation_text:
+            return decode_jats_abstract(notation_text).strip()
+
+    # Fallback: any <notation>
+    for e in root.iter():
+        if localname(e.tag) == "notation" and e.text:
+            return decode_jats_abstract(e.text).strip()
+
+    return None
+
+def extract_dates(root: ET.Element):
+    created = None
+    modified = None
+    for e in root.iter():
+        ln = localname(e.tag)
+        if ln == "createdAt" and e.text:
+            created = e.text.strip()
+        elif ln == "modifiedAt" and e.text:
+            modified = e.text.strip()
+    return created, modified
 
 
-def parse_rdf(file_path: str) -> Dict[str, Optional[str]]:
-    """
-    Parse a single RDF file and extract metadata.
-    Never crashes the whole pipeline: errors go into the 'error' field.
-    """
+def extract_creators(root: ET.Element):
+    names, affs = [], []
+
+    for creator in root.iter():
+        if localname(creator.tag) != "creator":
+            continue
+
+        for researcher in list(creator):
+            if localname(researcher.tag) != "Researcher":
+                continue
+
+            name = None
+            aff = None
+            for child in list(researcher):
+                ln = localname(child.tag)
+                if ln == "name" and child.text:
+                    name = child.text.strip()
+                elif ln == "affiliationName" and child.text:
+                    aff = child.text.strip()
+
+            if name:
+                names.append(name)
+            if aff:
+                affs.append(aff)
+
+    return names or None, affs or None
+
+
+def extract_doi(root):
+    for id_ in safe_findall(root, ".//productIdentifier/identifier"):
+        if "DOI" in id_.attrib.get("{http://www.w3.org/1999/02/22-rdf-syntax-ns#}datatype",""):
+            return safe_text(id_)
+    return None
+
+
+def extract_publication(root: ET.Element):
+    pub = None
+    for e in root.iter():
+        if localname(e.tag) == "publication":
+            pub = e
+            break
+    if pub is None:
+        return (None,) * 7
+
+    def child_text(pub_elem, child_local):
+        for c in list(pub_elem):
+            if localname(c.tag) == child_local and c.text:
+                return c.text.strip()
+        return None
+
+    return (
+        child_text(pub, "publicationName"),   # prism:publicationName
+        child_text(pub, "publisher"),         # dc:publisher
+        child_text(pub, "publicationDate"),   # prism:publicationDate
+        child_text(pub, "volume"),            # prism:volume
+        child_text(pub, "number"),            # prism:number
+        child_text(pub, "startingPage"),      # prism:startingPage
+        child_text(pub, "endingPage"),        # prism:endingPage
+    )
+
+def extract_topics(root: ET.Element):
+    topics = []
+    for e in root.iter():
+        if localname(e.tag) != "topic":
+            continue
+        # attribute is dc:title
+        t = e.attrib.get("{http://purl.org/dc/elements/1.1/}title")
+        if t:
+            topics.append(t)
+    return topics or None
+
+def extract_related(root: ET.Element):
+    rel = []
+    for e in root.iter():
+        if localname(e.tag) == "relatedTitle" and e.text:
+            rel.append(e.text.strip())
+    return rel or None
+
+
+def empty_row(file_path: str, error: str):
+    return {name: None for name in TARGET_SCHEMA.names} | {"file": file_path, "error": error}
+
+def parse_rdf(file_path: str) -> Dict:
     try:
         tree = ET.parse(file_path)
         root = tree.getroot()
-        return {
+
+        title = extract_title(root)
+        abstract = extract_abstract(root)
+        doi = extract_doi(root)
+        authors, affs = extract_creators(root)
+
+        journal, publisher, pub_date, volume, issue, start, end = extract_publication(root)
+        topics = extract_topics(root)
+        related = extract_related(root)
+        created, modified = extract_dates(root)
+
+        row = {name: None for name in TARGET_SCHEMA.names}
+        row.update({
             "file": file_path,
-            "title": extract_title(root),
-            "abstract": extract_abstract(root),
+            "title": title,
+            "abstract": abstract,
+            "doi": doi,
+            "authors": authors,
+            "affiliations": affs,
+            "journal": journal,
+            "publisher": publisher,
+            "publication_date": pub_date,
+            "volume": volume,
+            "issue": issue,
+            "start_page": start,
+            "end_page": end,
+            "topics": topics,
+            "related_titles": related,
+            "created_at": created,
+            "modified_at": modified,
             "error": None,
-        }
+        })
+        return row
+
+    except ET.ParseError as e:
+        return empty_row(file_path, f"ParseError: {e}")
     except Exception as e:
-        return {
-            "file": file_path,
-            "title": None,
-            "abstract": None,
-            "error": f"{type(e).__name__}: {e}",
-        }
+        return empty_row(file_path, f"{type(e).__name__}: {e}")
+    
+        
+def safe_text(elem):
+    return elem.text.strip() if elem is not None and elem.text else None
+
+
+def safe_find(root, path):
+    return root.find(path, NAMESPACES)
+
+
+def safe_findall(root, path):
+    return root.findall(path, NAMESPACES)
+
+
+def decode_jats_abstract(text):
+    if not text:
+        return None
+    try:
+        return html.unescape(text)
+    except:
+        return text
+    
+def localname(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def find_first_by_localname(root: ET.Element, name: str) -> Optional[ET.Element]:
+    for e in root.iter():
+        if localname(e.tag) == name:
+            return e
+    return None
 
 
 # ============================================================================
@@ -98,6 +265,20 @@ TARGET_SCHEMA = pa.schema([
     ("file", pa.string()),
     ("title", pa.string()),
     ("abstract", pa.string()),
+    ("doi", pa.string()),
+    ("authors", pa.list_(pa.string())),
+    ("affiliations", pa.list_(pa.string())),
+    ("journal", pa.string()),
+    ("publisher", pa.string()),
+    ("publication_date", pa.string()),
+    ("volume", pa.string()),
+    ("issue", pa.string()),
+    ("start_page", pa.string()),
+    ("end_page", pa.string()),
+    ("topics", pa.list_(pa.string())),
+    ("related_titles", pa.list_(pa.string())),
+    ("created_at", pa.string()),
+    ("modified_at", pa.string()),
     ("error", pa.string()),
 ])
 
@@ -209,11 +390,9 @@ def process_batch(batch_files: List[str], output_file: str, checkpoint_file: str
     df = pd.DataFrame(results)
 
     # Force stable schema across batches (prevents 'null' Arrow columns)
-    for col in ["file", "title", "abstract", "error"]:
+    for col in TARGET_SCHEMA.names:
         if col not in df.columns:
-            df[col] = pd.Series([None] * len(df), dtype="string")
-        else:
-            df[col] = df[col].astype("string")
+            df[col] = None
 
     save(df, output_file)
     append_to_checkpoint(checkpoint_file, batch_number)
@@ -287,7 +466,7 @@ def main():
         "-o",
         "--output-folder",
         type=str,
-        default="data/processed",
+        default="data/processed/moreinfo",
         help="Output folder for processed files (default: data/processed)",
     )
     args = parser.parse_args()

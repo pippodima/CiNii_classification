@@ -1,0 +1,3 @@
+model,accuracy,f1_macro,f1_weighted,model_path
+linearsvc,1.0,1.0,1.0,sub_classifiers/data/GEOGRAPHY_ANTHROPOLOGY_RECREATION/models/linearsvc.joblib
+knn_k3,1.0,1.0,1.0,sub_classifiers/data/GEOGRAPHY_ANTHROPOLOGY_RECREATION/models/knn_k3.joblib

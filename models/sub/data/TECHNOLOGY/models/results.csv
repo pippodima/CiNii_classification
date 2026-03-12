@@ -1,0 +1,3 @@
+model,accuracy,f1_macro,f1_weighted,model_path
+knn_k3,0.9887005649717514,0.9914817763165642,0.9887336138231894,sub_classifiers/data/TECHNOLOGY/models/knn_k3.joblib
+linearsvc,0.96045197740113,0.9514540763298595,0.9606201913518077,sub_classifiers/data/TECHNOLOGY/models/linearsvc.joblib

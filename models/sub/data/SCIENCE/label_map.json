@@ -1,0 +1,10 @@
+{
+  "Astronomy": 0,
+  "Chemistry": 1,
+  "Geology": 2,
+  "Mathematics": 3,
+  "Natural history - Biology": 4,
+  "Physics": 5,
+  "Physiology": 6,
+  "Zoology": 7
+}

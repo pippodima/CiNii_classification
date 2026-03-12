@@ -3,7 +3,7 @@ import numpy as np
 import json
 
 # --- Load metadata ---
-meta = pd.read_parquet("data/embedded/embedded_data.parquet")
+meta = pd.read_parquet("data/moreinfo_emb.parquet")
 
 # --- Load embedding state ---
 with open("data/embedded/checkpoints/embeddings_ckpt.state.json") as f:

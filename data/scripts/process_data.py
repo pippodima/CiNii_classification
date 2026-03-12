@@ -297,7 +297,7 @@ def translate_to_eng(df):
 
 
 def main():
-    df = load_df("data/processed/rdf_results_final.parquet")
+    df = load_df("data/processed/moreinfo/rdf_results_final.parquet")
     print(df.shape)
     df = drop_empty_rows(df)
     print(df.shape)
@@ -312,8 +312,8 @@ def main():
     # df = translate_to_eng(df)
     # print(df.shape)
     df_sci = classify_documents(df)
-    save(df_sci, "data/final/data_english.parquet")
-    save(df_other_languages, "data/final/data_other_languages.parquet")
+    save(df_sci, "data/final/moreinfo/data_english.parquet")
+    save(df_other_languages, "data/final/moreinfo/data_other_languages.parquet")
 
 
 

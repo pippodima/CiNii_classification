@@ -1,0 +1,9 @@
+folder,model,accuracy,f1_macro,f1_weighted,model_path
+GEOGRAPHY_ANTHROPOLOGY_RECREATION,linearsvc,1.0,1.0,1.0,sub_classifiers/data/GEOGRAPHY_ANTHROPOLOGY_RECREATION/models/linearsvc.joblib
+GEOGRAPHY_ANTHROPOLOGY_RECREATION,knn_k3,1.0,1.0,1.0,sub_classifiers/data/GEOGRAPHY_ANTHROPOLOGY_RECREATION/models/knn_k3.joblib
+MEDICINE,knn_k3,0.975609756097561,0.8602469135802469,0.9764287865100874,sub_classifiers/data/MEDICINE/models/knn_k3.joblib
+MEDICINE,linearsvc,0.9146341463414634,0.7566829004329004,0.9113332805405976,sub_classifiers/data/MEDICINE/models/linearsvc.joblib
+SCIENCE,knn_k3,0.9746268656716418,0.958481721316998,0.9745375005557737,sub_classifiers/data/SCIENCE/models/knn_k3.joblib
+SCIENCE,linearsvc,0.9597014925373134,0.8983500615980048,0.9591266975469747,sub_classifiers/data/SCIENCE/models/linearsvc.joblib
+TECHNOLOGY,knn_k3,0.9887005649717514,0.9914817763165642,0.9887336138231894,sub_classifiers/data/TECHNOLOGY/models/knn_k3.joblib
+TECHNOLOGY,linearsvc,0.96045197740113,0.9514540763298595,0.9606201913518077,sub_classifiers/data/TECHNOLOGY/models/linearsvc.joblib

@@ -1,0 +1,5 @@
+model,accuracy,f1_macro,f1_weighted,model_path
+linearsvc,0.9597014925373134,0.8983500615980048,0.9591266975469747,sub_classifiers/data/SCIENCE/models/linearsvc.joblib
+logreg,0.9447761194029851,0.8729496211455997,0.9450672716273701,sub_classifiers/data/SCIENCE/models/logreg.joblib
+knn_k15,0.9582089552238806,0.8482807959314704,0.9560139172653489,sub_classifiers/data/SCIENCE/models/knn_k15.joblib
+catboost,0.9238805970149254,0.5797923703286678,0.9176047650060938,sub_classifiers/data/SCIENCE/models/catboost.joblib
